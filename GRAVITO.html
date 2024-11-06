@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gravity Stacking Simulator</title>
+  <style>
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #f44336;
+      border: 1px solid #333;
+    }
+    #controls {
+      text-align: center;
+      margin: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #f44336;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button id="gravityToggle">Toggle Gravity</button>
+    <button id="refresh">Refresh</button>
+  </div>
+  <canvas id="simulationCanvas" width="800" height="600"></canvas>
+
+  <script>
+    const GRAVITY = 0.5; // Downward gravitational acceleration
+    const FLOAT_SPEED = 2; // Speed for floating bodies when gravity is off
+    let isGravityOn = true; // Flag for gravity state
+
+    const canvas = document.getElementById('simulationCanvas');
+    const ctx = canvas.getContext('2d');
+    let bodies = []; // Array to hold all bodies
+
+    // Toggle Gravity Button
+    document.getElementById('gravityToggle').addEventListener('click', () => {
+      isGravityOn = !isGravityOn;
+      if (!isGravityOn) {
+        // Apply floating motion to all bodies when gravity is off
+        bodies.forEach(body => {
+          body.vx = (Math.random() - 0.5) * FLOAT_SPEED;
+          body.vy = (Math.random() - 0.5) * FLOAT_SPEED;
+        });
+      }
+    });
+
+    // Refresh Button
+    document.getElementById('refresh').addEventListener('click', () => {
+      bodies = []; // Clear all bodies
+    });
+
+    class FallingBody {
+      constructor(x, y, mass, radius, color) {
+        this.x = x;
+        this.y = y;
+        this.mass = mass;
+        this.radius = radius;
+        this.color = color;
+        this.vx = (Math.random() - 0.5) * FLOAT_SPEED; // Small initial velocity
+        this.vy = (Math.random() - 0.5) * FLOAT_SPEED; // to ensure movement in no-gravity
+      }
+
+      // Draw the body on the canvas
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+
+      // Update position and apply gravity or floating motion
+      update() {
+        if (isGravityOn) {
+          this.vy += GRAVITY * this.mass; // Apply downward acceleration if gravity is on
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Ground collision and stacking
+        if (isGravityOn) {
+          for (const other of bodies) {
+            // Check if there's another ball directly below
+            if (other !== this && Math.abs(this.x - other.x) < this.radius * 1.5) {
+              const distance = Math.abs(this.y - other.y);
+              if (distance <= this.radius + other.radius) {
+                this.y = other.y - this.radius * 2; // Stack on top of other body
+                this.vy = 0;
+                break;
+              }
+            }
+          }
+          
+          // Stop at ground if there is no other body below
+          if (this.y + this.radius >= canvas.height) {
+            this.y = canvas.height - this.radius;
+            this.vy = 0;
+          }
+        } else {
+          // Floating behavior when gravity is off
+          if (this.y + this.radius >= canvas.height || this.y - this.radius <= 0) {
+            this.vy *= -1; // Bounce off top and bottom
+          }
+          if (this.x + this.radius >= canvas.width || this.x - this.radius <= 0) {
+            this.vx *= -1; // Bounce off left and right edges
+          }
+        }
+      }
+    }
+
+    // Initialize simulation with some bodies
+    function init() {
+      bodies.push(new FallingBody(200, 50, 2, 15, 'blue'));
+      bodies.push(new FallingBody(400, 100, 3, 20, 'green'));
+      bodies.push(new FallingBody(600, 150, 1.5, 10, 'red'));
+    }
+
+    // Update and draw all bodies
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (const body of bodies) {
+        body.update();
+        body.draw();
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    // Add interactivity to create new bodies
+    canvas.addEventListener('click', (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const newBody = new FallingBody(x, y, Math.random() * 3 + 1, Math.random() * 10 + 5, getRandomColor());
+      bodies.push(newBody);
+    });
+
+    // Utility function to generate a random color
+    function getRandomColor() {
+      const letters = '0123456789ABCDEF';
+      let color = '#';
+      for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+      }
+      return color;
+    }
+
+    init();
+    animate();
+  </script>
+</body>
+</html>
